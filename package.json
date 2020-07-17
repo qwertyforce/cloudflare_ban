@@ -1,0 +1,11 @@
+{
+  "name": "cloudflare_ban",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/qwertyforce/cloudflare_ban.git",
+  "author": "qwertyforce <44163887+qwertyforce@users.noreply.github.com>",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^0.19.2"
+  }
+}

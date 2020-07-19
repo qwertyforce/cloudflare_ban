@@ -1,4 +1,5 @@
 # cloudflare_ban
+```npm i cloudflare_ban```
 ```js
 async function main(){
     const x = require("cloudflare_ban")

@@ -1,6 +1,6 @@
 {
   "name": "cloudflare_ban",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "index.js",
   "repository": "https://github.com/qwertyforce/cloudflare_ban.git",
   "author": "qwertyforce <44163887+qwertyforce@users.noreply.github.com>",

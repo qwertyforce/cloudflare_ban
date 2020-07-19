@@ -1,11 +1,11 @@
 const axios = require('axios');
 
-
-async function create_rule(action, ip) {
+async function create_rule(action, ip,priority) {
   try {
-    const result = await axios.post(`https://api.cloudflare.com/client/v4/zones/${ZONE_IDENTIFIER}/firewall/rules`, [
+    const res = await axios.post(`https://api.cloudflare.com/client/v4/zones/${ZONE_IDENTIFIER}/firewall/rules`, [
       {
         action: action,
+        priority: priority,
         description: `${action}_cloudflare_ban`,
         filter: {
           expression: `(ip.src in {${ip}})`
@@ -17,7 +17,7 @@ async function create_rule(action, ip) {
         "X-Auth-Key": AUTH_KEY
       }
     })
-    return result.data
+    return res.data.result[0]
   } catch (err) {
     console.log(err.response.data);
   }
@@ -36,37 +36,93 @@ async function update_filter(filter_id, expression) {
           "X-Auth-Key": AUTH_KEY
         }
       })
-    console.log(result.data.result)
+    if(result.data.result){
+      return true
+    }
+    return false
   } catch (err) {
     console.log(err.response.data);
   }
 }
 
 
-function block(ip) {
+async function block(ip) {
+  if(!BLOCK.rule_id){
+    return {success:false,msg:"not ready"}
+  }
   if (!BLOCK.ips.includes(ip)) {
    BLOCK.ips.push(ip)
-   let result = update_filter(BLOCK.filter_id,`(ip.src in {${BLOCK.join(' ')}})`)
+   let result = await update_filter(BLOCK.filter_id,`(ip.src in {${BLOCK.ips.join(' ')}})`)
+   return {success:result?true:false}
   } else {
-    console.log("already in the list")
+    return {success:false,msg:"already in the list"}
+  }
+}
+async function remove_block(ip) {
+  if(!BLOCK.rule_id){
+    return {success:false,msg:"not ready"}
+  }
+  if (BLOCK.ips.includes(ip)) {
+   BLOCK.ips=BLOCK.ips.filter((el)=>el!==ip)
+   let result = await update_filter(BLOCK.filter_id,`(ip.src in {${BLOCK.ips.join(' ')}})`)
+   return {success:result?true:false}
+  } else {
+    return {success:false,msg:"not in the list"}
   }
 }
 
-function captcha(ip) {
+async function captcha(ip) {
+  if(!CAPTCHA.rule_id){
+    return {success:false,msg:"not ready"}
+  }
   if (!CAPTCHA.ips.includes(ip)) {
     CAPTCHA.ips.push(ip)
+    let result = await update_filter(CAPTCHA.filter_id,`(ip.src in {${CAPTCHA.ips.join(' ')}})`)
+    return {success:result?true:false}
   } else {
-    console.log("already in the list")
+    return {success:false,msg:"already in the list"}
   }
 }
 
-function js_challenge(ip) {
-  if (!JS_CHALLENGE.ips.includes(ip)) {
-    JS_CHALLENGE.ips.push(ip)
+async function remove_captcha(ip) {
+  if(!CAPTCHA.rule_id){
+    return {success:false,msg:"not ready"}
+  }
+  if (CAPTCHA.ips.includes(ip)) {
+    CAPTCHA.ips=CAPTCHA.ips.filter((el)=>el!==ip)
+   let result = await update_filter(CAPTCHA.filter_id,`(ip.src in {${CAPTCHA.ips.join(' ')}})`)
+   return {success:result?true:false}
   } else {
-    console.log("already in the list")
+    return {success:false,msg:"not in the list"}
   }
 }
+
+async function js_challenge(ip) {
+  if(!JS_CHALLENGE.rule_id){
+    return {success:false,msg:"not ready"}
+  }
+  if (!JS_CHALLENGE.ips.includes(ip)) {
+    JS_CHALLENGE.ips.push(ip)
+    let result = await update_filter(JS_CHALLENGE.filter_id,`(ip.src in {${JS_CHALLENGE.ips.join(' ')}})`)
+    return {success:result?true:false}
+  } else {
+    return {success:false,msg:"already in the list"}
+  }
+}
+
+async function remove_js_challenge(ip) {
+  if(!JS_CHALLENGE.rule_id){
+    return {success:false,msg:"not ready"}
+  }
+  if (JS_CHALLENGE.ips.includes(ip)) {
+    JS_CHALLENGE.ips=JS_CHALLENGE.ips.filter((el)=>el!==ip)
+   let result = await update_filter(JS_CHALLENGE.filter_id,`(ip.src in {${JS_CHALLENGE.ips.join(' ')}})`)
+   return {success:result?true:false}
+  } else {
+    return {success:false,msg:"not in the list"}
+  }
+}
+
 
 function extract_ips(str) {
   const ind1 = str.indexOf("{")
@@ -91,7 +147,6 @@ async function start() {
       }
     })
     let firewall_rules = result.data.result
-    console.log(firewall_rules)
     for (let rule of firewall_rules) {
       if (rule.description === "block_cloudflare_ban") {
         BLOCK.rule_id = rule.id
@@ -110,25 +165,37 @@ async function start() {
       }
     }
     if (BLOCK.rule_id === null) {
-      let res = await create_rule("block", "1.1.1.1")
-      BLOCK.rule_id = res.id
-      BLOCK.filter_id = res.filter.id
-      BLOCK.ips = extract_ips(res.filter.expression)
-      console.log(BLOCK)
+      let res = await create_rule("block", "1.1.1.1",1)
+      if(res){
+        BLOCK.rule_id = res.id
+        BLOCK.filter_id = res.filter.id
+        BLOCK.ips = extract_ips(res.filter.expression)
+        console.log(BLOCK)
+      }else{
+        console.log("ERROR BLOCK RULE")
+      }
     }
     if (CAPTCHA.rule_id === null) {
-      let res = await create_rule("challenge", "1.1.1.2")
-      CAPTCHA.rule_id = res.id
-      CAPTCHA.filter_id = res.filter.id
-      CAPTCHA.ips = extract_ips(res.filter.expression)
-      console.log(CAPTCHA)
+      let res = await create_rule("challenge", "1.1.1.2",2)
+      if(res){
+        CAPTCHA.rule_id = res.id
+        CAPTCHA.filter_id = res.filter.id
+        CAPTCHA.ips = extract_ips(res.filter.expression)
+        console.log(CAPTCHA)
+      }else{
+        console.log("ERROR CAPTCHA RULE")
+      }
     }
     if (JS_CHALLENGE.rule_id === null) {
-      let res = await  create_rule("js_challenge", "1.1.1.3")
-      JS_CHALLENGE.rule_id = res.id
-      JS_CHALLENGE.filter_id = res.filter.id
-      JS_CHALLENGE.ips = extract_ips(res.filter.expression)
-      console.log(JS_CHALLENGE)
+      let res = await  create_rule("js_challenge", "1.1.1.3",3)
+      if(res){
+        JS_CHALLENGE.rule_id = res.id
+        JS_CHALLENGE.filter_id = res.filter.id
+        JS_CHALLENGE.ips = extract_ips(res.filter.expression)
+        console.log(JS_CHALLENGE)
+      }else{
+        console.log("ERROR JS_CHALLLENGE RULE")
+      }
     }
   } catch (err) {
     console.log(err);
@@ -138,7 +205,6 @@ async function start() {
 let ZONE_IDENTIFIER = null
 let EMAIL = null
 let AUTH_KEY = null
-let ready = false
 const BLOCK = { rule_id: null, filter_id: null, ips: [] }
 const CAPTCHA = { rule_id: null, filter_id: null, ips: [] }
 const JS_CHALLENGE = { rule_id: null, filter_id: null, ips: [] }
@@ -152,4 +218,15 @@ function set_auth_key(auth_key) {
   AUTH_KEY = auth_key
 }
 
-module.exports = { set_zone_identifier, set_email, set_auth_key, start,block,captcha,js_challenge};
+module.exports = {
+  set_zone_identifier,
+  set_email, 
+  set_auth_key,
+  start, 
+  block,
+  captcha,
+  js_challenge,
+  remove_block,
+  remove_captcha,
+  remove_js_challenge
+};

@@ -6,6 +6,6 @@
   "author": "qwertyforce <44163887+qwertyforce@users.noreply.github.com>",
   "license": "MIT",
   "dependencies": {
-    "axios": "^0.21.2"
+    "axios": "^0.28.0"
   }
 }
